@@ -19,8 +19,50 @@ canvas.className = 'canvas-class';
 canvas.width = 256;
 canvas.height = 256;
 app.append(canvas);
-const ctx: CanvasRenderingContext2D | null = canvas.getContext("2d");
-if (ctx) 
+const context = canvas.getContext("2d");
+// const ctx: CanvasRenderingContext2D | null = canvas.getContext("2d");
+// const sticker = document.getElementById("sticker") as HTMLCanvasElement;
+// const context = sticker.getContext("2d")
+// if (ctx) 
+// {
+//     ctx.fillStyle = 'transparent'; 
+// }
+let isDrawing = false;
+let x: number = 0;
+let y: number = 0;
+
+canvas.addEventListener("mousedown", (event: MouseEvent) =>
 {
-    ctx.fillStyle = 'transparent'; 
+    isDrawing = true;
+    x = event.offsetX;
+    y = event.offsetY;
+});
+canvas.addEventListener('mousemove', (event: MouseEvent) =>
+{
+    if (isDrawing && context)
+    {
+        drawLine(context, x, y, event.offsetX, event.offsetY)
+        x = event.offsetX;
+        y = event.offsetY;
+    }
+});
+self.addEventListener("mouseup", (event: MouseEvent) =>
+{
+    if (isDrawing && context)
+    {
+        drawLine(context, x, y, event.offsetX, event.offsetY);
+        isDrawing = false;
+    }
+});
+
+
+function drawLine(context: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number)
+{
+    context.beginPath();
+    context.strokeStyle = "black";
+    context.lineWidth = 1;
+    context.moveTo(x1, y1);
+    context.lineTo(x2, y2);
+    context.stroke();
+    context.closePath();
 }
