@@ -20,13 +20,9 @@ canvas.width = 256;
 canvas.height = 256;
 app.append(canvas);
 const context = canvas.getContext("2d");
-// const ctx: CanvasRenderingContext2D | null = canvas.getContext("2d");
-// const sticker = document.getElementById("sticker") as HTMLCanvasElement;
-// const context = sticker.getContext("2d")
-// if (ctx) 
-// {
-//     ctx.fillStyle = 'transparent'; 
-// }
+const clearBtn = document.createElement('button');
+clearBtn.innerText = 'Clear';
+app.append(clearBtn);
 let isDrawing = false;
 let x: number = 0;
 let y: number = 0;
@@ -54,6 +50,13 @@ self.addEventListener("mouseup", (event: MouseEvent) =>
         isDrawing = false;
     }
 });
+clearBtn.addEventListener('click', () =>
+{
+    if (context) 
+    {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+    }
+})
 
 
 function drawLine(context: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number)
