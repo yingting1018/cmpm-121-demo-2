@@ -27,27 +27,52 @@ let isDrawing = false;
 let x: number = 0;
 let y: number = 0;
 
+let drawingPoints: Array<Array<{ x: number, y: number}>> = [];
+let currentLine: Array<{ x: number, y: number}> = [];
+
 canvas.addEventListener("mousedown", (event: MouseEvent) =>
 {
     isDrawing = true;
     x = event.offsetX;
     y = event.offsetY;
+    currentLine = [{ x,y }];
 });
 canvas.addEventListener('mousemove', (event: MouseEvent) =>
 {
-    if (isDrawing && context)
+    if (isDrawing)
     {
-        drawLine(context, x, y, event.offsetX, event.offsetY)
+        // drawLine(context, x, y, event.offsetX, event.offsetY)
         x = event.offsetX;
         y = event.offsetY;
+        currentLine.push({ x,y });
+
+        const drawingChangedEvent = new Event('drawing-changed')
+        canvas.dispatchEvent(drawingChangedEvent);
     }
 });
-self.addEventListener("mouseup", (event: MouseEvent) =>
+self.addEventListener("mouseup", () =>
 {
-    if (isDrawing && context)
+    if (isDrawing)
     {
-        drawLine(context, x, y, event.offsetX, event.offsetY);
+        // drawLine(context, x, y, event.offsetX, event.offsetY);
         isDrawing = false;
+        drawingPoints.push(currentLine);
+    }
+});
+canvas.addEventListener('drawing-changed', () =>
+{
+    if (context) 
+    {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+
+        drawingPoints.forEach(line =>
+            {
+                drawLine(context, line);
+            });
+        if (currentLine.length > 1)
+        {
+            drawLine(context, currentLine)
+        }
     }
 });
 clearBtn.addEventListener('click', () =>
@@ -55,17 +80,28 @@ clearBtn.addEventListener('click', () =>
     if (context) 
     {
         context.clearRect(0, 0, canvas.width, canvas.height);
+        drawingPoints = [];
+        currentLine = [];
     }
 })
 
 
-function drawLine(context: CanvasRenderingContext2D, x1: number, y1: number, x2: number, y2: number)
+function drawLine(context: CanvasRenderingContext2D, line: Array<{ x: number, y: number }>)
 {
     context.beginPath();
     context.strokeStyle = "black";
     context.lineWidth = 1;
-    context.moveTo(x1, y1);
-    context.lineTo(x2, y2);
+    line.forEach((point, index) => 
+    {
+        if (index === 0)
+        {
+            context.moveTo(point.x, point.y);
+        } else {
+            context.lineTo(point.x, point.y);
+        }
+    })
+    // context.moveTo(x1, y1);
+    // context.lineTo(x2, y2);
     context.stroke();
     context.closePath();
 }
