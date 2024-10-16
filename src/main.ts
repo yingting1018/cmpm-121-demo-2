@@ -29,7 +29,41 @@ let y: number = 0;
 
 let drawingPoints: Array<Array<{ x: number, y: number}>> = [];
 let currentLine: Array<{ x: number, y: number}> = [];
+let redoStack: Array<Array<{ x: number, y: number }>> = [];
 
+const redo = document.createElement('button');
+redo.innerText = 'Redo';
+app.append(redo);
+
+const undo = document.createElement('button');
+undo.innerText = 'Undo';
+app.append(undo);
+
+undo.addEventListener('click', () =>
+{
+    if (drawingPoints.length > 0)
+    {
+        const lastLine = drawingPoints.pop();
+        if (lastLine) 
+        {
+            redoStack.push(lastLine);
+        }
+        canvas.dispatchEvent(new Event('drawing-changed'));
+    }
+});
+
+redo.addEventListener('click', () =>
+{
+    if (redoStack.length > 0)
+    {
+        const lineRedo = redoStack.pop();
+        if (lineRedo)
+        {
+            drawingPoints.push(lineRedo);
+        }
+        canvas.dispatchEvent(new Event('drawing-changed'));
+    }
+})
 canvas.addEventListener("mousedown", (event: MouseEvent) =>
 {
     isDrawing = true;
@@ -41,7 +75,6 @@ canvas.addEventListener('mousemove', (event: MouseEvent) =>
 {
     if (isDrawing)
     {
-        // drawLine(context, x, y, event.offsetX, event.offsetY)
         x = event.offsetX;
         y = event.offsetY;
         currentLine.push({ x,y });
@@ -54,7 +87,6 @@ self.addEventListener("mouseup", () =>
 {
     if (isDrawing)
     {
-        // drawLine(context, x, y, event.offsetX, event.offsetY);
         isDrawing = false;
         drawingPoints.push(currentLine);
     }
@@ -69,10 +101,6 @@ canvas.addEventListener('drawing-changed', () =>
             {
                 drawLine(context, line);
             });
-        if (currentLine.length > 1)
-        {
-            drawLine(context, currentLine)
-        }
     }
 });
 clearBtn.addEventListener('click', () =>
@@ -81,7 +109,7 @@ clearBtn.addEventListener('click', () =>
     {
         context.clearRect(0, 0, canvas.width, canvas.height);
         drawingPoints = [];
-        currentLine = [];
+        redoStack = [];
     }
 })
 
@@ -100,8 +128,6 @@ function drawLine(context: CanvasRenderingContext2D, line: Array<{ x: number, y:
             context.lineTo(point.x, point.y);
         }
     })
-    // context.moveTo(x1, y1);
-    // context.lineTo(x2, y2);
     context.stroke();
     context.closePath();
 }
