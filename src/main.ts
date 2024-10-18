@@ -30,13 +30,16 @@ let y: number = 0;
 let drawingLines: Array<MarkerLine> = [];
 let currentLine: MarkerLine | null = null;
 let redoStack: Array<MarkerLine> = [];
+let lineWidth: number = 1;
 
 class MarkerLine
 {
     private points: Array<{ x: number, y: number }> = [];
-    constructor(initialX: number, initialY: number)
+    private thickness: number;
+    constructor(initialX: number, initialY: number, thickness: number)
     {
         this.points.push({ x: initialX, y: initialY });
+        this.thickness = thickness;
     }
     drag(x: number, y: number)
     {
@@ -47,7 +50,7 @@ class MarkerLine
     {
         ctx.beginPath();
         ctx.strokeStyle = "black";
-        ctx.lineWidth = 1;
+        ctx.lineWidth = this.thickness;
         this.points.forEach((point, index) =>
         {
             if (index === 0) 
@@ -71,6 +74,23 @@ const undo = document.createElement('button');
 undo.innerText = 'Undo';
 app.append(undo);
 
+const thin = document.createElement('button');
+thin.innerText = 'Thin Marker';
+app.append(thin);
+
+const thick = document.createElement('button');
+thick.innerText = 'Thick Marker';
+app.append(thick);
+
+thin.addEventListener('click', () =>
+{
+    lineWidth = 1;
+});
+
+thick.addEventListener('click', () =>
+{
+    lineWidth = 5;
+});
 undo.addEventListener('click', () =>
 {
     if (drawingLines.length > 0)
@@ -101,7 +121,7 @@ canvas.addEventListener("mousedown", (event: MouseEvent) =>
     isDrawing = true;
     x = event.offsetX;
     y = event.offsetY;
-    currentLine = new MarkerLine(x, y);
+    currentLine = new MarkerLine(x, y, lineWidth);
 });
 canvas.addEventListener('mousemove', (event: MouseEvent) =>
 {
