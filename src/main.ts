@@ -27,10 +27,42 @@ let isDrawing = false;
 let x: number = 0;
 let y: number = 0;
 
-let drawingPoints: Array<Array<{ x: number, y: number}>> = [];
-let currentLine: Array<{ x: number, y: number}> = [];
-let redoStack: Array<Array<{ x: number, y: number }>> = [];
+let drawingLines: Array<MarkerLine> = [];
+let currentLine: MarkerLine | null = null;
+let redoStack: Array<MarkerLine> = [];
 
+class MarkerLine
+{
+    private points: Array<{ x: number, y: number }> = [];
+    constructor(initialX: number, initialY: number)
+    {
+        this.points.push({ x: initialX, y: initialY });
+    }
+    drag(x: number, y: number)
+    {
+        this.points.push({ x, y});
+    }
+
+    display(ctx: CanvasRenderingContext2D)
+    {
+        ctx.beginPath();
+        ctx.strokeStyle = "black";
+        ctx.lineWidth = 1;
+        this.points.forEach((point, index) =>
+        {
+            if (index === 0) 
+            {
+                ctx.moveTo(point.x, point.y);
+            } else
+            {
+                ctx.lineTo(point.x, point.y);
+            }
+        });
+        ctx.stroke();
+        ctx.closePath();
+    }
+
+}
 const redo = document.createElement('button');
 redo.innerText = 'Redo';
 app.append(redo);
@@ -41,9 +73,9 @@ app.append(undo);
 
 undo.addEventListener('click', () =>
 {
-    if (drawingPoints.length > 0)
+    if (drawingLines.length > 0)
     {
-        const lastLine = drawingPoints.pop();
+        const lastLine = drawingLines.pop();
         if (lastLine) 
         {
             redoStack.push(lastLine);
@@ -59,7 +91,7 @@ redo.addEventListener('click', () =>
         const lineRedo = redoStack.pop();
         if (lineRedo)
         {
-            drawingPoints.push(lineRedo);
+            drawingLines.push(lineRedo);
         }
         canvas.dispatchEvent(new Event('drawing-changed'));
     }
@@ -69,26 +101,26 @@ canvas.addEventListener("mousedown", (event: MouseEvent) =>
     isDrawing = true;
     x = event.offsetX;
     y = event.offsetY;
-    currentLine = [{ x,y }];
+    currentLine = new MarkerLine(x, y);
 });
 canvas.addEventListener('mousemove', (event: MouseEvent) =>
 {
-    if (isDrawing)
+    if (isDrawing && currentLine)
     {
         x = event.offsetX;
         y = event.offsetY;
-        currentLine.push({ x,y });
-
+        currentLine.drag( x,y );
         const drawingChangedEvent = new Event('drawing-changed')
         canvas.dispatchEvent(drawingChangedEvent);
     }
 });
 self.addEventListener("mouseup", () =>
 {
-    if (isDrawing)
+    if (isDrawing && currentLine)
     {
         isDrawing = false;
-        drawingPoints.push(currentLine);
+        drawingLines.push(currentLine);
+        currentLine = null;
     }
 });
 canvas.addEventListener('drawing-changed', () =>
@@ -96,10 +128,9 @@ canvas.addEventListener('drawing-changed', () =>
     if (context) 
     {
         context.clearRect(0, 0, canvas.width, canvas.height);
-
-        drawingPoints.forEach(line =>
+        drawingLines.forEach(line =>
             {
-                drawLine(context, line);
+                line.display(context);
             });
     }
 });
@@ -108,26 +139,7 @@ clearBtn.addEventListener('click', () =>
     if (context) 
     {
         context.clearRect(0, 0, canvas.width, canvas.height);
-        drawingPoints = [];
+        drawingLines = [];
         redoStack = [];
     }
-})
-
-
-function drawLine(context: CanvasRenderingContext2D, line: Array<{ x: number, y: number }>)
-{
-    context.beginPath();
-    context.strokeStyle = "black";
-    context.lineWidth = 1;
-    line.forEach((point, index) => 
-    {
-        if (index === 0)
-        {
-            context.moveTo(point.x, point.y);
-        } else {
-            context.lineTo(point.x, point.y);
-        }
-    })
-    context.stroke();
-    context.closePath();
-}
+});
