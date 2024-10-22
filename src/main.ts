@@ -31,6 +31,7 @@ let drawingLines: Array<MarkerLine> = [];
 let currentLine: MarkerLine | null = null;
 let redoStack: Array<MarkerLine> = [];
 let lineWidth: number = 1;
+let toolPreview: ToolPreview | null = null;
 
 class MarkerLine
 {
@@ -64,8 +65,34 @@ class MarkerLine
         ctx.stroke();
         ctx.closePath();
     }
-
 }
+class ToolPreview 
+{
+    private x: number;
+    private y: number;
+    private thickness: number;
+    constructor (x: number, y: number, thickness: number)
+    {
+        this.x = x;
+        this.y = y;
+        this.thickness = thickness;
+    }
+    updatePosition(x: number, y: number)
+    {
+        this.x = x;
+        this.y = y;
+    }
+    draw(ctx: CanvasRenderingContext2D)
+    {
+        ctx.beginPath();
+        ctx.strokeStyle = "gray";
+        ctx.lineWidth = 1;
+        ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.closePath();
+    }
+}
+
 const redo = document.createElement('button');
 redo.innerText = 'Redo';
 app.append(redo);
@@ -125,6 +152,8 @@ canvas.addEventListener("mousedown", (event: MouseEvent) =>
 });
 canvas.addEventListener('mousemove', (event: MouseEvent) =>
 {
+    x = event.offsetX;
+    y = event.offsetY;
     if (isDrawing && currentLine)
     {
         x = event.offsetX;
@@ -132,6 +161,20 @@ canvas.addEventListener('mousemove', (event: MouseEvent) =>
         currentLine.drag( x,y );
         const drawingChangedEvent = new Event('drawing-changed')
         canvas.dispatchEvent(drawingChangedEvent);
+    }
+    else
+    {
+        if (!isDrawing)
+        {
+            if (!toolPreview)
+            {
+                toolPreview = new ToolPreview(x, y, lineWidth);
+            }else 
+            {
+                toolPreview.updatePosition(x, y);
+            }
+            canvas.dispatchEvent(new Event('preview-changed'));
+        }
     }
 });
 self.addEventListener("mouseup", () =>
@@ -152,6 +195,21 @@ canvas.addEventListener('drawing-changed', () =>
             {
                 line.display(context);
             });
+    }
+});
+canvas.addEventListener('preview-changed', () =>
+{
+    if (context) 
+    {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        drawingLines.forEach(line =>
+            {
+                line.display(context);
+            });
+            if (toolPreview)
+            {
+                toolPreview.draw(context);
+            }
     }
 });
 clearBtn.addEventListener('click', () =>
