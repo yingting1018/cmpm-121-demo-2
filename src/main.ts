@@ -13,7 +13,9 @@ const header = document.createElement("h1");
 header.innerHTML = gameName;
 app.append(header);
 
-
+interface Drawable {
+    display(ctx: CanvasRenderingContext2D): void;
+}
 const canvas: HTMLCanvasElement = document.createElement('canvas');
 canvas.className = 'canvas-class';
 canvas.width = 256;
@@ -27,13 +29,15 @@ let isDrawing = false;
 let x: number = 0;
 let y: number = 0;
 
-let drawingLines: Array<MarkerLine> = [];
+let drawingLines: Array<Drawable> = [];
 let currentLine: MarkerLine | null = null;
 let redoStack: Array<MarkerLine> = [];
 let lineWidth: number = 1;
 let toolPreview: ToolPreview | null = null;
+let currentSticker: string | null = null;
+let currentStickerCommand: StickerCommand | null = null;
 
-class MarkerLine
+class MarkerLine implements Drawable
 {
     private points: Array<{ x: number, y: number }> = [];
     private thickness: number;
@@ -70,29 +74,61 @@ class ToolPreview
 {
     private x: number;
     private y: number;
-    private thickness: number;
-    constructor (x: number, y: number, thickness: number)
+    // private thickness: number;
+    private visible: boolean;
+    constructor (x: number, y: number)
     {
         this.x = x;
         this.y = y;
-        this.thickness = thickness;
+        // this.thickness = thickness;
+        this.visible = true;
     }
     updatePosition(x: number, y: number)
     {
         this.x = x;
         this.y = y;
     }
+    setVisible(visible: boolean)
+    {
+        this.visible = visible;
+    }
     draw(ctx: CanvasRenderingContext2D)
     {
-        ctx.beginPath();
-        ctx.strokeStyle = "gray";
-        ctx.lineWidth = 1;
-        ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
-        ctx.stroke();
-        ctx.closePath();
+        if (this.visible)
+        {
+        // ctx.beginPath();
+        // ctx.strokeStyle = "gray";
+        // ctx.lineWidth = 1;
+        // ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
+        // ctx.stroke();
+        // ctx.closePath();
+        ctx.font = "20px Arial";
+        ctx.fillStyle = "black";
+        ctx.fillText("*", this.x - 5, this.y + 5);
+        }
     }
 }
+class StickerCommand implements Drawable {
+    private x: number;
+    private y: number;
+    private sticker: string;
 
+    constructor(x: number, y: number, sticker: string) {
+        this.x = x;
+        this.y = y;
+        this.sticker = sticker;
+    }
+
+    drag(x: number, y: number) {
+        this.x = x;
+        this.y = y;
+    }
+
+    display(ctx: CanvasRenderingContext2D) {
+        ctx.font = "24px Arial";
+        ctx.fillText(this.sticker, this.x - 10, this.y + 10);
+    }
+}
 const redo = document.createElement('button');
 redo.innerText = 'Redo';
 app.append(redo);
@@ -108,6 +144,36 @@ app.append(thin);
 const thick = document.createElement('button');
 thick.innerText = 'Thick Marker';
 app.append(thick);
+
+const sticker1 = document.createElement('button');
+sticker1.innerText = '🐱';  
+app.append(sticker1);
+
+const sticker2 = document.createElement('button');
+sticker2.innerText = '🍎';  
+app.append(sticker2);
+
+const sticker3 = document.createElement('button');
+sticker3.innerText = '🍀'; 
+app.append(sticker3);
+
+sticker1.addEventListener('click', () => {
+    currentSticker = '🐱';
+    currentStickerCommand = new StickerCommand(x, y, currentSticker);
+    canvas.dispatchEvent(new Event('tool-moved'));
+});
+
+sticker2.addEventListener('click', () => {
+    currentSticker = '🍎';
+    currentStickerCommand = new StickerCommand(x, y, currentSticker);
+    canvas.dispatchEvent(new Event('tool-moved'));
+});
+
+sticker3.addEventListener('click', () => {
+    currentSticker = '🍀';
+    currentStickerCommand = new StickerCommand(x, y, currentSticker);
+    canvas.dispatchEvent(new Event('tool-moved'));
+});
 
 thin.addEventListener('click', () =>
 {
@@ -148,33 +214,41 @@ canvas.addEventListener("mousedown", (event: MouseEvent) =>
     isDrawing = true;
     x = event.offsetX;
     y = event.offsetY;
-    currentLine = new MarkerLine(x, y, lineWidth);
+    currentLine = new MarkerLine(x, y, lineWidth); 
+    if (currentSticker) {
+        currentStickerCommand = new StickerCommand(x, y, currentSticker);
+        drawingLines.push(currentStickerCommand);  
+        currentSticker = null; 
+        currentStickerCommand = null; 
+        canvas.dispatchEvent(new Event('drawing-changed'));  
+    } else {
+        isDrawing = true;
+        currentLine = new MarkerLine(x, y, lineWidth);
+    }
+    if (toolPreview)
+    {
+        toolPreview.setVisible(false);
+    }
 });
-canvas.addEventListener('mousemove', (event: MouseEvent) =>
-{
+canvas.addEventListener('mousemove', (event: MouseEvent) => {
     x = event.offsetX;
     y = event.offsetY;
-    if (isDrawing && currentLine)
-    {
-        x = event.offsetX;
-        y = event.offsetY;
-        currentLine.drag( x,y );
-        const drawingChangedEvent = new Event('drawing-changed')
-        canvas.dispatchEvent(drawingChangedEvent);
-    }
-    else
-    {
-        if (!isDrawing)
-        {
-            if (!toolPreview)
-            {
-                toolPreview = new ToolPreview(x, y, lineWidth);
-            }else 
-            {
+
+    if (isDrawing && currentLine) {
+        currentLine.drag(x, y);
+        canvas.dispatchEvent(new Event('drawing-changed'));
+    } else {
+        if (currentSticker && currentStickerCommand) {
+             currentStickerCommand.drag(x, y);
+             canvas.dispatchEvent(new Event('preview-changed'));
+        } else if (!currentSticker) {
+            if (!toolPreview) {
+                toolPreview = new ToolPreview(x, y);
+            } else {
                 toolPreview.updatePosition(x, y);
             }
-            canvas.dispatchEvent(new Event('preview-changed'));
         }
+        canvas.dispatchEvent(new Event('preview-changed'));
     }
 });
 self.addEventListener("mouseup", () =>
@@ -185,16 +259,17 @@ self.addEventListener("mouseup", () =>
         drawingLines.push(currentLine);
         currentLine = null;
     }
+    if (toolPreview)
+    {
+        toolPreview.setVisible(true);
+    }
 });
 canvas.addEventListener('drawing-changed', () =>
 {
     if (context) 
     {
         context.clearRect(0, 0, canvas.width, canvas.height);
-        drawingLines.forEach(line =>
-            {
-                line.display(context);
-            });
+        drawingLines.forEach(line => line.display(context));
     }
 });
 canvas.addEventListener('preview-changed', () =>
@@ -202,13 +277,14 @@ canvas.addEventListener('preview-changed', () =>
     if (context) 
     {
         context.clearRect(0, 0, canvas.width, canvas.height);
-        drawingLines.forEach(line =>
-            {
-                line.display(context);
-            });
+        drawingLines.forEach(line => line.display(context));
             if (toolPreview)
             {
                 toolPreview.draw(context);
+            }
+            if (currentStickerCommand)
+            {
+                currentStickerCommand.display(context);
             }
     }
 });
