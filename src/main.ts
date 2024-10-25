@@ -36,6 +36,7 @@ let lineWidth: number = 1;
 let toolPreview: ToolPreview | null = null;
 let currentSticker: string | null = null;
 let currentStickerCommand: StickerCommand | null = null;
+let isDragging = false;
 
 class MarkerLine implements Drawable
 {
@@ -74,19 +75,22 @@ class ToolPreview
 {
     private x: number;
     private y: number;
-    // private thickness: number;
+    private thickness: number;
     private visible: boolean;
-    constructor (x: number, y: number)
+    constructor (x: number, y: number, thickness: number)
     {
         this.x = x;
         this.y = y;
-        // this.thickness = thickness;
+        this.thickness = thickness;
         this.visible = true;
     }
     updatePosition(x: number, y: number)
     {
         this.x = x;
         this.y = y;
+    }
+    updateThickness(thickness: number) {
+        this.thickness = thickness;
     }
     setVisible(visible: boolean)
     {
@@ -96,15 +100,12 @@ class ToolPreview
     {
         if (this.visible)
         {
-        // ctx.beginPath();
-        // ctx.strokeStyle = "gray";
-        // ctx.lineWidth = 1;
-        // ctx.arc(this.x, this.y, this.thickness / 2, 0, 2 * Math.PI);
-        // ctx.stroke();
-        // ctx.closePath();
-        ctx.font = "20px Arial";
-        ctx.fillStyle = "black";
-        ctx.fillText("*", this.x - 5, this.y + 5);
+            ctx.beginPath();
+            ctx.strokeStyle = "gray";
+            ctx.lineWidth = 5;
+            ctx.arc(this.x, this.y, this.thickness, 0, 2 * Math.PI);
+            ctx.stroke();
+            ctx.closePath();
         }
     }
 }
@@ -157,32 +158,35 @@ const sticker3 = document.createElement('button');
 sticker3.innerText = '🍀'; 
 app.append(sticker3);
 
+
 sticker1.addEventListener('click', () => {
     currentSticker = '🐱';
-    currentStickerCommand = new StickerCommand(x, y, currentSticker);
-    canvas.dispatchEvent(new Event('tool-moved'));
+    // currentStickerCommand = new StickerCommand(x, y, currentSticker);
+    // canvas.dispatchEvent(new Event('tool-moved'));
 });
 
 sticker2.addEventListener('click', () => {
     currentSticker = '🍎';
-    currentStickerCommand = new StickerCommand(x, y, currentSticker);
-    canvas.dispatchEvent(new Event('tool-moved'));
+    // currentStickerCommand = new StickerCommand(x, y, currentSticker);
+    // canvas.dispatchEvent(new Event('tool-moved'));
 });
 
 sticker3.addEventListener('click', () => {
     currentSticker = '🍀';
-    currentStickerCommand = new StickerCommand(x, y, currentSticker);
-    canvas.dispatchEvent(new Event('tool-moved'));
+    // currentStickerCommand = new StickerCommand(x, y, currentSticker);
+    // canvas.dispatchEvent(new Event('tool-moved'));
 });
 
 thin.addEventListener('click', () =>
 {
     lineWidth = 1;
+    if (toolPreview) toolPreview.updateThickness(lineWidth);
 });
 
 thick.addEventListener('click', () =>
 {
     lineWidth = 5;
+    if (toolPreview) toolPreview.updateThickness(lineWidth);
 });
 undo.addEventListener('click', () =>
 {
@@ -211,24 +215,22 @@ redo.addEventListener('click', () =>
 })
 canvas.addEventListener("mousedown", (event: MouseEvent) =>
 {
-    isDrawing = true;
     x = event.offsetX;
     y = event.offsetY;
-    currentLine = new MarkerLine(x, y, lineWidth); 
+
     if (currentSticker) {
+        isDragging = true;
         currentStickerCommand = new StickerCommand(x, y, currentSticker);
-        drawingLines.push(currentStickerCommand);  
-        currentSticker = null; 
-        currentStickerCommand = null; 
-        canvas.dispatchEvent(new Event('drawing-changed'));  
     } else {
         isDrawing = true;
         currentLine = new MarkerLine(x, y, lineWidth);
     }
-    if (toolPreview)
-    {
+
+    if (toolPreview) {
         toolPreview.setVisible(false);
     }
+
+    canvas.dispatchEvent(new Event('preview-changed'));
 });
 canvas.addEventListener('mousemove', (event: MouseEvent) => {
     x = event.offsetX;
@@ -237,30 +239,47 @@ canvas.addEventListener('mousemove', (event: MouseEvent) => {
     if (isDrawing && currentLine) {
         currentLine.drag(x, y);
         canvas.dispatchEvent(new Event('drawing-changed'));
-    } else {
-        if (currentSticker && currentStickerCommand) {
+    } else if (isDragging && currentStickerCommand) {
              currentStickerCommand.drag(x, y);
              canvas.dispatchEvent(new Event('preview-changed'));
-        } else if (!currentSticker) {
+            } else if (currentSticker) {
+                // Live updating and preview of the emoji at current mouse position
+                if (currentStickerCommand) {
+                    currentStickerCommand.drag(x, y);
+                } else {
+                    currentStickerCommand = new StickerCommand(x, y, currentSticker);
+                }
+                canvas.dispatchEvent(new Event('preview-changed'));
+        } else {
             if (!toolPreview) {
-                toolPreview = new ToolPreview(x, y);
+                toolPreview = new ToolPreview(x, y, lineWidth);
             } else {
                 toolPreview.updatePosition(x, y);
+                toolPreview.updateThickness(lineWidth);
             }
+            canvas.dispatchEvent(new Event('preview-changed'));
         }
-        canvas.dispatchEvent(new Event('preview-changed'));
-    }
 });
-self.addEventListener("mouseup", () =>
+self.addEventListener("mouseup", (event: MouseEvent) =>
 {
-    if (isDrawing && currentLine)
-    {
+    x = event.offsetX; 
+    y = event.offsetY;
+    if (isDragging && currentStickerCommand) {
+        currentStickerCommand.drag(x, y);  
+        drawingLines.push(currentStickerCommand); 
+        currentSticker = null; 
+        currentStickerCommand = null;
+        isDragging = false;
+        canvas.dispatchEvent(new Event('drawing-changed'));
+    }
+
+    if (isDrawing && currentLine) {
         isDrawing = false;
         drawingLines.push(currentLine);
         currentLine = null;
     }
-    if (toolPreview)
-    {
+
+    if (toolPreview) {
         toolPreview.setVisible(true);
     }
 });
@@ -270,6 +289,7 @@ canvas.addEventListener('drawing-changed', () =>
     {
         context.clearRect(0, 0, canvas.width, canvas.height);
         drawingLines.forEach(line => line.display(context));
+        currentLine?.display(context);
     }
 });
 canvas.addEventListener('preview-changed', () =>
