@@ -38,6 +38,12 @@ let currentSticker: string | null = null;
 let currentStickerCommand: StickerCommand | null = null;
 let isDragging = false;
 
+const stickers = [
+    { label: "🐱", icon: "🐱" },
+    { label: "🍎", icon: "🍎" },
+    { label: "🍀", icon: "🍀" },
+]
+
 class MarkerLine implements Drawable
 {
     private points: Array<{ x: number, y: number }> = [];
@@ -130,6 +136,41 @@ class StickerCommand implements Drawable {
         ctx.fillText(this.sticker, this.x - 10, this.y + 10);
     }
 }
+
+function renderStickerButtons() 
+{
+    stickers.forEach(({ label, icon }) =>
+    {
+        const stickerButton = document.createElement("button");
+        stickerButton.innerText = label;
+        stickerButton.addEventListener("click", () =>
+        {
+            currentSticker = icon;
+        });
+        app.append(stickerButton);
+    });
+}
+renderStickerButtons();
+
+const customStickerButton = document.createElement("button");
+customStickerButton.innerText = "Custom Sticker";
+app.append(customStickerButton);
+
+customStickerButton.addEventListener("click", () =>
+{
+    const customSticker = prompt("Enter your custom sticker:", "");
+    if (customSticker)
+    {
+        stickers.push({ label: customSticker, icon: customSticker });
+        const newStickerButton = document.createElement("button");
+        newStickerButton.innerText = customSticker;
+        newStickerButton.addEventListener("click", () =>
+        {
+            currentSticker = customSticker;
+        });
+        app.append(newStickerButton);
+    }
+});
 const redo = document.createElement('button');
 redo.innerText = 'Redo';
 app.append(redo);
@@ -145,37 +186,6 @@ app.append(thin);
 const thick = document.createElement('button');
 thick.innerText = 'Thick Marker';
 app.append(thick);
-
-const sticker1 = document.createElement('button');
-sticker1.innerText = '🐱';  
-app.append(sticker1);
-
-const sticker2 = document.createElement('button');
-sticker2.innerText = '🍎';  
-app.append(sticker2);
-
-const sticker3 = document.createElement('button');
-sticker3.innerText = '🍀'; 
-app.append(sticker3);
-
-
-sticker1.addEventListener('click', () => {
-    currentSticker = '🐱';
-    // currentStickerCommand = new StickerCommand(x, y, currentSticker);
-    // canvas.dispatchEvent(new Event('tool-moved'));
-});
-
-sticker2.addEventListener('click', () => {
-    currentSticker = '🍎';
-    // currentStickerCommand = new StickerCommand(x, y, currentSticker);
-    // canvas.dispatchEvent(new Event('tool-moved'));
-});
-
-sticker3.addEventListener('click', () => {
-    currentSticker = '🍀';
-    // currentStickerCommand = new StickerCommand(x, y, currentSticker);
-    // canvas.dispatchEvent(new Event('tool-moved'));
-});
 
 thin.addEventListener('click', () =>
 {
@@ -240,15 +250,14 @@ canvas.addEventListener('mousemove', (event: MouseEvent) => {
         currentLine.drag(x, y);
         canvas.dispatchEvent(new Event('drawing-changed'));
     } else if (isDragging && currentStickerCommand) {
-             currentStickerCommand.drag(x, y);
-             canvas.dispatchEvent(new Event('preview-changed'));
-            } else if (currentSticker) {
-                // Live updating and preview of the emoji at current mouse position
-                if (currentStickerCommand) {
-                    currentStickerCommand.drag(x, y);
-                } else {
-                    currentStickerCommand = new StickerCommand(x, y, currentSticker);
-                }
+            currentStickerCommand.drag(x, y);
+            canvas.dispatchEvent(new Event('preview-changed'));
+    } else if (currentSticker) {
+        if (currentStickerCommand) {
+                currentStickerCommand.drag(x, y);
+            } else {
+                currentStickerCommand = new StickerCommand(x, y, currentSticker);
+            }
                 canvas.dispatchEvent(new Event('preview-changed'));
         } else {
             if (!toolPreview) {
