@@ -187,6 +187,10 @@ const thick = document.createElement('button');
 thick.innerText = 'Thick Marker';
 app.append(thick);
 
+const exportbtn = document.createElement('button');
+exportbtn.innerText = 'Export';
+app.append(exportbtn);
+
 thin.addEventListener('click', () =>
 {
     lineWidth = 1;
@@ -326,3 +330,18 @@ clearBtn.addEventListener('click', () =>
         redoStack = [];
     }
 });
+exportbtn.addEventListener('click', () =>
+{
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = 1024;
+    exportCanvas.height = 1024;
+    const exportContext = exportCanvas.getContext('2d');
+    if (!exportContext) return;
+    exportContext.scale(4, 4);
+    drawingLines.forEach(line => line.display(exportContext));
+
+    const anchor = document.createElement("a");
+    anchor.href = exportCanvas.toDataURL("image/png");
+    anchor.download = "sketchpad.png";
+    anchor.click();
+})
