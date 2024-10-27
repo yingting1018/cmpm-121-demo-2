@@ -193,7 +193,7 @@ app.append(exportbtn);
 
 thin.addEventListener('click', () =>
 {
-    lineWidth = 1;
+    lineWidth = 2;
     if (toolPreview) toolPreview.updateThickness(lineWidth);
 });
 
