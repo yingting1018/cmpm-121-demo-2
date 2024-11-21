@@ -1,30 +1,20 @@
 import "./style.css";
+import { setupCanvas, setupClearButton } from "./ui/canvas";
+import { MarkerLine } from "./models/markerline";
+import { stickers } from "./consts";
+import { setupHeader } from "./ui/header";
+import { APP_NAME, gameName } from "./consts";
+import { Drawable } from "./models/drawable";
+import { ToolPreview } from "./models/toolpreview";
+import { StickerCommand } from "./models/stickercommand";
 
-const APP_NAME = "yingting's game";
 const app = document.querySelector<HTMLDivElement>("#app")!;
-
-document.title = APP_NAME;
 app.innerHTML = APP_NAME;
 
-const gameName = "Sticker Sketchpad";
-document.title = gameName;
+setupHeader(app, gameName);
+const {canvas, context} = setupCanvas(app); 
 
-const header = document.createElement("h1");
-header.innerHTML = gameName;
-app.append(header);
 
-interface Drawable {
-    display(ctx: CanvasRenderingContext2D): void;
-}
-const canvas: HTMLCanvasElement = document.createElement('canvas');
-canvas.className = 'canvas-class';
-canvas.width = 256;
-canvas.height = 256;
-app.append(canvas);
-const context = canvas.getContext("2d");
-const clearBtn = document.createElement('button');
-clearBtn.innerText = 'Clear';
-app.append(clearBtn);
 let isDrawing = false;
 let x: number = 0;
 let y: number = 0;
@@ -38,145 +28,12 @@ let currentSticker: string | null = null;
 let currentStickerCommand: StickerCommand | null = null;
 let isDragging = false;
 
-const stickers = [
-    { label: "🐱", icon: "🐱" },
-    { label: "🍎", icon: "🍎" },
-    { label: "🍀", icon: "🍀" },
-]
-
-class MarkerLine implements Drawable
-{
-    private points: Array<{ x: number, y: number }> = [];
-    private thickness: number;
-    constructor(initialX: number, initialY: number, thickness: number)
-    {
-        this.points.push({ x: initialX, y: initialY });
-        this.thickness = thickness;
-    }
-    drag(x: number, y: number)
-    {
-        this.points.push({ x, y});
-    }
-
-    display(ctx: CanvasRenderingContext2D)
-    {
-        ctx.beginPath();
-        ctx.strokeStyle = "black";
-        ctx.lineWidth = this.thickness;
-        this.points.forEach((point, index) =>
-        {
-            if (index === 0) 
-            {
-                ctx.moveTo(point.x, point.y);
-            } else
-            {
-                ctx.lineTo(point.x, point.y);
-            }
-        });
-        ctx.stroke();
-        ctx.closePath();
-    }
-}
-class ToolPreview 
-{
-    private x: number;
-    private y: number;
-    private thickness: number;
-    private visible: boolean;
-    constructor (x: number, y: number, thickness: number)
-    {
-        this.x = x;
-        this.y = y;
-        this.thickness = thickness;
-        this.visible = true;
-    }
-    updatePosition(x: number, y: number)
-    {
-        this.x = x;
-        this.y = y;
-    }
-    updateThickness(thickness: number) {
-        this.thickness = thickness;
-    }
-    setVisible(visible: boolean)
-    {
-        this.visible = visible;
-    }
-    draw(ctx: CanvasRenderingContext2D)
-    {
-        if (this.visible)
-        {
-            ctx.beginPath();
-            ctx.strokeStyle = "gray";
-            ctx.lineWidth = 5;
-            ctx.arc(this.x, this.y, this.thickness, 0, 2 * Math.PI);
-            ctx.stroke();
-            ctx.closePath();
-        }
-    }
-}
-class StickerCommand implements Drawable {
-    private x: number;
-    private y: number;
-    private sticker: string;
-    private rotation: number;
-
-    constructor(x: number, y: number, sticker: string) {
-        this.x = x;
-        this.y = y;
-        this.sticker = sticker;
-        this.rotation = Math.random() * 2 * Math.PI;
-    }
-
-    drag(x: number, y: number) {
-        this.x = x;
-        this.y = y;
-    }
-
-    display(ctx: CanvasRenderingContext2D) {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.rotation);
-        ctx.font = "24px Arial";
-        ctx.fillText(this.sticker, -12, 12);
-        ctx.restore();
-    }
-}
-
-function renderStickerButtons() 
-{
-    stickers.forEach(({ label, icon }) =>
-    {
-        const stickerButton = document.createElement("button");
-        stickerButton.innerText = label;
-        stickerButton.addEventListener("click", () =>
-        {
-            currentSticker = icon;
-        });
-        app.append(stickerButton);
-    });
-}
-renderStickerButtons();
+const clearBtn = setupClearButton(app, context, canvas, drawingLines, redoStack);
 
 const customStickerButton = document.createElement("button");
 customStickerButton.innerText = "Custom Sticker";
 app.append(customStickerButton);
 
-customStickerButton.addEventListener("click", () =>
-{
-    const customSticker = prompt("Enter your custom sticker:", "");
-    if (customSticker)
-    {
-        stickers.push({ label: customSticker, icon: customSticker });
-        const newStickerButton = document.createElement("button");
-        newStickerButton.innerText = customSticker;
-        newStickerButton.addEventListener("click", () =>
-        {
-            currentSticker = customSticker;
-        });
-        app.append(newStickerButton);
-    }
-});
 const redo = document.createElement('button');
 redo.innerText = 'Redo';
 app.append(redo);
@@ -196,6 +53,48 @@ app.append(thick);
 const exportbtn = document.createElement('button');
 exportbtn.innerText = 'Export';
 app.append(exportbtn);
+
+
+clearBtn.addEventListener('click', () =>
+{
+    if (context) 
+    {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        drawingLines = [];
+        redoStack = [];
+    }
+});
+
+function renderStickerButtons() 
+{
+    stickers.forEach(({ label, icon }) =>
+    {
+        const stickerButton = document.createElement("button");
+        stickerButton.innerText = label;
+        stickerButton.addEventListener("click", () =>
+        {
+            currentSticker = icon;
+        });
+        app.append(stickerButton);
+    });
+}
+renderStickerButtons();
+
+customStickerButton.addEventListener("click", () =>
+{
+    const customSticker = prompt("Enter your custom sticker:", "");
+    if (customSticker)
+    {
+        stickers.push({ label: customSticker, icon: customSticker });
+        const newStickerButton = document.createElement("button");
+        newStickerButton.innerText = customSticker;
+        newStickerButton.addEventListener("click", () =>
+        {
+            currentSticker = customSticker;
+        });
+        app.append(newStickerButton);
+    }
+});
 
 thin.addEventListener('click', () =>
 {
@@ -323,15 +222,6 @@ canvas.addEventListener('preview-changed', () =>
             {
                 currentStickerCommand.display(context);
             }
-    }
-});
-clearBtn.addEventListener('click', () =>
-{
-    if (context) 
-    {
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        drawingLines = [];
-        redoStack = [];
     }
 });
 exportbtn.addEventListener('click', () =>
