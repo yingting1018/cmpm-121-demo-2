@@ -210,11 +210,9 @@ thick.addEventListener('click', () =>
 });
 undo.addEventListener('click', () =>
 {
-    if (drawingLines.length > 0)
-    {
+    if (drawingLines.length > 0) {
         const lastLine = drawingLines.pop();
-        if (lastLine) 
-        {
+        if (lastLine instanceof MarkerLine) {
             redoStack.push(lastLine);
         }
         canvas.dispatchEvent(new Event('drawing-changed'));
